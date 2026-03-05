@@ -1,0 +1,47 @@
+harness: coding_agent
+
+settings:
+  context_size: 4000
+  max_feedback_cycles: 3
+  max_runtime_seconds: 900
+
+tasks:
+  repo_analysis:
+    skill: analyze_repository
+    context: []
+    produces: CodebaseMap
+    evaluate: repo_map_quality
+    samples: 3
+    retry_limit: 2
+
+  planning:
+    skill: generate_plan
+    context: [CodebaseMap]
+    produces: PhasePlan
+    evaluate: plan_quality
+    samples: 2
+    retry_limit: 2
+
+  implementation:
+    skill: implement_change
+    context: [CodebaseMap, PhasePlan]
+    produces: ImplementationPatch
+    evaluate: patch_quality
+    samples: 3
+    retry_limit: 3
+
+  verification:
+    skill: verify_behavior
+    context: [ImplementationPatch]
+    produces: QAReport
+    evaluate: test_pass_rate
+    samples: 1
+    retry_limit: 2
+
+flow:
+  - repo_analysis -> planning
+  - planning -> implementation
+  - implementation -> verification
+
+feedback:
+  - verification.failure -> implementation

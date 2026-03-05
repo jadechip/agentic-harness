@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-harness"
+version = "0.1.0"
+description = "Harness-driven coding agent framework"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+agent-harness = "agent_harness.cli.main:main"
+
+[tool.setuptools]
+packages = [
+  "agent_harness",
+  "agent_harness.core",
+  "agent_harness.dsl",
+  "agent_harness.runtime",
+  "agent_harness.evaluation",
+  "agent_harness.tools",
+  "agent_harness.store",
+  "agent_harness.skills",
+  "agent_harness.evaluations",
+  "agent_harness.rl",
+  "agent_harness.cli",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
