@@ -94,6 +94,13 @@ def criterion_patch_completeness(content: dict[str, Any]) -> float:
     return _ratio(score)
 
 
+def criterion_repo_change_applied(content: dict[str, Any]) -> float:
+    files_changed = content.get("files_changed", [])
+    if not isinstance(files_changed, list):
+        return 0.0
+    return 1.0 if len(files_changed) > 0 else 0.0
+
+
 def criterion_test_pass_rate(content: dict[str, Any]) -> float:
     pass_rate = content.get("pass_rate")
     if isinstance(pass_rate, (int, float)):
@@ -127,6 +134,7 @@ CRITERION_FUNCTIONS: dict[str, Callable[[dict[str, Any]], float]] = {
     "risk_coverage": criterion_risk_coverage,
     "file_targeting": criterion_file_targeting,
     "patch_completeness": criterion_patch_completeness,
+    "repo_change_applied": criterion_repo_change_applied,
     "test_pass_rate": criterion_test_pass_rate,
     "issue_reporting": criterion_issue_reporting,
     "non_empty": criterion_non_empty,

@@ -1,9 +1,14 @@
 harness: coding_agent
 
 settings:
+  model: openrouter/openai/gpt-4o
+  temperature: 0.2
+  max_tokens: 2000
+  evaluation_mode: hybrid
   context_size: 4000
   max_feedback_cycles: 3
   max_runtime_seconds: 900
+  allow_unreachable_tasks: true
 
 tasks:
   repo_analysis:
@@ -24,7 +29,7 @@ tasks:
 
   implementation:
     skill: implement_change
-    context: [CodebaseMap, PhasePlan]
+    context: [CodebaseMap, PhasePlan, QAReport]
     produces: ImplementationPatch
     evaluate: patch_quality
     samples: 3
@@ -38,10 +43,19 @@ tasks:
     samples: 1
     retry_limit: 2
 
+  debug_failure:
+    skill: debug_failure
+    context: [QAReport, ImplementationPatch]
+    produces: ImplementationPatch
+    evaluate: patch_quality
+    samples: 1
+    retry_limit: 2
+
 flow:
   - repo_analysis -> planning
   - planning -> implementation
   - implementation -> verification
 
 feedback:
-  - verification.failure -> implementation
+  - verification.failure -> debug_failure
+  - debug_failure.success -> implementation

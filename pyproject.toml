@@ -29,6 +29,7 @@ packages = [
   "agent_harness.evaluation",
   "agent_harness.tools",
   "agent_harness.store",
+  "agent_harness.providers",
   "agent_harness.skills",
   "agent_harness.evaluations",
   "agent_harness.rl",

@@ -6,7 +6,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from agent_harness.skills.common import SkillOutput, estimate_tokens
+from agent_harness.providers.base_provider import LLMProvider
+from agent_harness.skills.common import SkillOutput, generate_structured_content
 from agent_harness.tools.base_tool import ToolSandbox
 
 
@@ -76,6 +77,7 @@ def run(
     user_request: str,
     repo_path: Path,
     tools: ToolSandbox,
+    provider: LLMProvider,
     sample_index: int,
     feedback: list[str] | None = None,
 ) -> SkillOutput:
@@ -117,15 +119,7 @@ def run(
         f"Detected {len(entrypoints)} likely entrypoints and {len(config_files)} config files."
     )
 
-    feedback_text = "\n".join(feedback or [])
-    prompt = (
-        "Analyze repository structure and produce a CodebaseMap artifact.\n"
-        f"User request: {user_request}\n"
-        f"Retry feedback: {feedback_text}\n"
-        f"Sample index: {sample_index}"
-    )
-
-    content = {
+    fallback_content = {
         "modules": sorted(modules),
         "entrypoints": sorted(entrypoints),
         "languages": sorted(languages),
@@ -134,5 +128,36 @@ def run(
         "architecture_summary": architecture_summary,
     }
 
-    token_usage = estimate_tokens(prompt + " " + architecture_summary)
-    return SkillOutput(content=content, prompt=prompt, tool_calls=[], token_usage=token_usage)
+    artifact_schema = {
+        "modules": ["string"],
+        "entrypoints": ["string"],
+        "languages": ["string"],
+        "dependency_graph": {"module_path": ["dependency_name"]},
+        "config_files": ["string"],
+        "architecture_summary": "string",
+    }
+
+    llm_context = {
+        "user_request": user_request,
+        "sample_index": sample_index,
+        "feedback": feedback or [],
+        "observed_repository_facts": fallback_content,
+    }
+
+    content, response, prompt = generate_structured_content(
+        provider=provider,
+        task_goal="Derive comprehensive structural understanding of the repository.",
+        artifact_name="CodebaseMap",
+        artifact_schema=artifact_schema,
+        context_payload=llm_context,
+        fallback_content=fallback_content,
+    )
+
+    return SkillOutput(
+        content=content,
+        prompt=prompt,
+        tool_calls=list(response.tool_calls),
+        token_usage=response.token_usage,
+        model=response.model,
+        latency=response.latency,
+    )

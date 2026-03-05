@@ -4,11 +4,13 @@ from agent_harness.cli.main import _build_scheduler
 from agent_harness.store.trace_store import TraceStore
 
 
-def test_end_to_end_run_collects_traces(tmp_path: Path) -> None:
+def test_end_to_end_run_collects_traces_and_changes_files(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    (repo / "app.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
+    app_file = repo / "app.py"
+    original_app = "def add(a, b):\n    return a + b\n"
+    app_file.write_text(original_app, encoding="utf-8")
     (repo / "test_app.py").write_text(
         "from app import add\n\n"
         "def test_add():\n"
@@ -22,6 +24,7 @@ def test_end_to_end_run_collects_traces(tmp_path: Path) -> None:
         "settings:\n"
         "  context_size: 3000\n"
         "  max_feedback_cycles: 1\n"
+        "  evaluation_mode: deterministic\n"
         "evaluations:\n"
         "  repo_map_quality:\n"
         "    criteria: [module_coverage, entrypoint_detection, dependency_accuracy, architecture_summary_quality]\n"
@@ -68,7 +71,7 @@ def test_end_to_end_run_collects_traces(tmp_path: Path) -> None:
         "    retry_limit: 1\n"
         "  implementation:\n"
         "    skill: implement_change\n"
-        "    context: [CodebaseMap, PhasePlan]\n"
+        "    context: [CodebaseMap, PhasePlan, QAReport]\n"
         "    produces: ImplementationPatch\n"
         "    evaluate: patch_quality\n"
         "    samples: 1\n"
@@ -88,12 +91,31 @@ def test_end_to_end_run_collects_traces(tmp_path: Path) -> None:
     )
 
     db_path = tmp_path / "harness.db"
-    scheduler = _build_scheduler(harness_file=harness_file, repo_path=repo, db_path=db_path)
+    scheduler = _build_scheduler(
+        harness_file=harness_file,
+        repo_path=repo,
+        db_path=db_path,
+        provider_name="mock",
+        model_name="default",
+        evaluation_mode_override="deterministic",
+    )
     result = scheduler.run(user_request="Add OAuth login", repo_path=repo)
 
     assert result.success is True
     assert len(result.task_outcomes) == 4
 
+    updated_app = app_file.read_text(encoding="utf-8")
+    assert updated_app != original_app
+    assert "agent_harness change" in updated_app
+
     traces = TraceStore(db_path).export_run(result.run_id)
     assert len(traces) >= 4
     assert all("evaluation_score" in trace for trace in traces)
+    assert all("model_name" in trace for trace in traces)
+    assert all("provider_name" in trace for trace in traces)
+    assert all("temperature" in trace for trace in traces)
+    assert all("max_tokens" in trace for trace in traces)
+    assert all("evaluator_mode" in trace for trace in traces)
+    assert all("candidate" in trace for trace in traces)
+    assert any(trace.get("selected") for trace in traces)
+    assert any(trace.get("evaluation_breakdown") for trace in traces)

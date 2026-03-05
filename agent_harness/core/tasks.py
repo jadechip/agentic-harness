@@ -30,16 +30,17 @@ class TaskGraph:
                 outgoing[source].add(target)
                 indegree[target] += 1
 
-        queue = [name for name, degree in indegree.items() if degree == 0]
+        queue = sorted(name for name, degree in indegree.items() if degree == 0)
         ordered: list[str] = []
 
         while queue:
             task_name = queue.pop(0)
             ordered.append(task_name)
-            for target in outgoing[task_name]:
+            for target in sorted(outgoing[task_name]):
                 indegree[target] -= 1
                 if indegree[target] == 0:
                     queue.append(target)
+                    queue.sort()
 
         if len(ordered) != len(self.tasks):
             raise ValueError("Flow graph contains a cycle")

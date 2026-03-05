@@ -9,10 +9,16 @@ def test_parse_example_harness() -> None:
     harness = parse_harness_yaml(harness_path)
 
     assert harness.name == "coding_agent"
-    assert set(harness.tasks) == {"repo_analysis", "planning", "implementation", "verification"}
+    assert set(harness.tasks) == {
+        "repo_analysis",
+        "planning",
+        "implementation",
+        "verification",
+        "debug_failure",
+    }
     assert ("planning", "implementation") in harness.flow
     assert harness.feedback[0].source_task == "verification"
-    assert harness.feedback[0].target_task == "implementation"
+    assert harness.feedback[0].target_task == "debug_failure"
 
 
 def test_validate_harness_with_known_skills_and_evaluations() -> None:
